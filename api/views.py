@@ -3,8 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 
-from api.models import Deck
-from api.serializers import DeckSerializer
+from api.models import Deck, Card
+from api.serializers import DeckSerializer, CardSerializer
 
 
 class JSONResponse(HttpResponse):
@@ -21,7 +21,7 @@ class JSONResponse(HttpResponse):
 @csrf_exempt
 def deck_list(request):
     """
-    List all decks, or create a new deck.
+    List all decks or create a new deck.
     """
     if request.method == 'GET':
         decks = Deck.objects.all()
@@ -40,7 +40,7 @@ def deck_list(request):
 @csrf_exempt
 def deck_detail(request, pk):
     """
-    Retrieve, update or delete a deck.
+    Retrieve, update, or delete a deck or create a card.
     """
     try:
         deck = Deck.objects.get(pk=pk)
@@ -50,6 +50,14 @@ def deck_detail(request, pk):
     if request.method == 'GET':
         serializer = DeckSerializer(deck)
         return JSONResponse(serializer.data)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = CardSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JSONResponse(serializer.data, status=201)
+        return JSONResponse(serializer.errors, status=400)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
@@ -61,4 +69,31 @@ def deck_detail(request, pk):
 
     elif request.method == 'DELETE':
         deck.delete()
+        return HttpResponse(status=204)
+
+
+@csrf_exempt
+def card_detail(request, pk):
+    """
+    Retrieve, update, or delete a card.
+    """
+    try:
+        card = Card.objects.get(pk=pk)
+    except Card.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'GET':
+        serializer = CardSerializer(card)
+        return JSONResponse(serializer.data)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        serializer = CardSerializer(card, data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JSONResponse(serializer.data)
+        return JSONResponse(serializer.errors, status=400)
+
+    elif request.method == 'DELETE':
+        card.delete()
         return HttpResponse(status=204)
